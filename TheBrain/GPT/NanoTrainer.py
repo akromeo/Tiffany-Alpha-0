@@ -1,9 +1,8 @@
 import os
-
 from F import OS
 import torch
 from TheBrain.GPT import DataSetGenerator, VocabGenerators
-from TheBrain.GPT.Encoders import Faircoder, TikToken
+from TheBrain.GPT.Encoders import Faircoder
 from Transformer_v2 import Fonfig, BigramLanguageModel
 
 import resource
@@ -13,37 +12,36 @@ resource.setrlimit(resource.RLIMIT_AS, (soft, hard))
 cwd = OS.get_cwd()
 out_dir = 'out2'
 
-
-""" DATA SET """
-text = DataSetGenerator.get_raw_data_set(articleLimit=10000)
-
-""" Fair ENCODER """
+""" Setup Vocab """
 # encoder_dict = VocabGenerators.load_fair_encoder()
 # ENCODE = Faircoder.get_encoder_object(encoder_dict)
 # decoder_dict = VocabGenerators.load_fair_decoder()
 # DECODE = Faircoder.get_decoder_object(decoder_dict)
-# encoded_data = ENCODE(text)
-# vocab_size = len(encoded_data)
+# raw_data = DataSetGenerator.get_raw_data_set()
+# tensor_data = torch.tensor(ENCODE(raw_data), dtype=torch.long)
+# train_data, val_data = Faircoder.SPLIT_TRAINING_VAL(tensor_data)
+# vocab_size = len(raw_data)
+# print(f"vocab_size = {vocab_size}")
 
-""" TIKTOKEN ENCODER """
-encoded_data = TikToken.encode(text)
-vocab_size = TikToken.get_tiktoken_vocab_count()
+
+# wget https://raw.githubusercontent.com/karpathy/char-rnn/master/data/tinyshakespeare/input.txt
+# with open(f'{cwd}/VocabGenerators/input.txt', 'r', encoding='utf-8') as f:
+#     text = f.read()
+# here are all the unique characters that occur in this text
+
+text = DataSetGenerator.get_raw_data_set(articleLimit=5000)
 
 
-""" RAW ENCODER """
-# chars = sorted(list(set(text)))
-# vocab_size = len(chars)
-# # create a mapping from characters to integers
-# stoi = { ch:i for i,ch in enumerate(chars) }
-# itos = { i:ch for i,ch in enumerate(chars) }
-# ENCODE = lambda s: [stoi[c] for c in s] # encoder: take a string, output a list of integers
-# DECODE = lambda l: ''.join([itos[i] for i in l]) # decoder: take a list of integers, output a string
-# encoded_data = ENCODE(text)
-
-""" Setup Train/Val Data """
-data = torch.tensor(encoded_data, dtype=torch.long)
+chars = sorted(list(set(text)))
+vocab_size = len(chars)
+# create a mapping from characters to integers
+stoi = { ch:i for i,ch in enumerate(chars) }
+itos = { i:ch for i,ch in enumerate(chars) }
+ENCODE = lambda s: [stoi[c] for c in s] # encoder: take a string, output a list of integers
+DECODE = lambda l: ''.join([itos[i] for i in l]) # decoder: take a list of integers, output a string
+data = torch.tensor(ENCODE(text), dtype=torch.long) #one dimensional tensor of integers for each unique character in order
 n = int(0.9*len(data)) # first 90% will be train, rest val
-train_data = data[:n]
+train_data = data[:n] 
 val_data = data[n:]
 
 
@@ -117,7 +115,6 @@ for iter in range(config.max_iters):
 context = torch.zeros((1, 1), dtype=torch.long, device=config.device)
 encoded_output = model.generate(context, max_new_tokens=500)[0].tolist()
 print(encoded_output)
-decoded = TikToken.decode(encoded_output)
-# decoded = DECODE(encoded_output)
+decoded = DECODE(encoded_output)
 print(decoded)
 #open('more.txt', 'w').write(decode(m.generate(context, max_new_tokens=10000)[0].tolist()))
